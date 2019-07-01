@@ -40,15 +40,17 @@ def main():
     callId = str(random.randint(10000, 99999))
     cseq = "1"
     randomPort = str(random.randint(1025, 65535))
+    tag = str(random.randint(1000, 1999))
+    branch = str(random.randint(2000, 2999))
 
     # SIP delayed offer string
     delayedOffer = ("INVITE sip:" + destinationUserPart + "@" + destinationHostPart + ":5060;transport=tcp SIP/2.0\r\n"
-                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=1234\r\n"
-                "From: <sip:99999@" + sourceIp + ">;tag=456\r\n"
+                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=" + branch + "\r\n"
+                "From: <sip:99999@" + sourceIp + ">;tag=" + tag + "\r\n"
                 "To: <sip:" + destinationUserPart + "@" + destinationHostPart + ":5060>\r\n"
                 "Call-ID: " + callId + "@" + sourceIp + "\r\n"
                 "CSeq: " + cseq + " INVITE\r\n"
-                "Content-Type: application/sdp\r\n"
+                "Content-Type: application/SDP\r\n"  # SDP in uppercase otherwise Expressway rejects with "Warning: 399 x.x.x.x:xxxx "Invalid SIP message""
                 "Contact: <sip:99999@" + sourceIp + ":5060;transport=tcp>\r\n"
                 "User-Agent: SIP Probe\r\n"
                 "Max-Forwards: 10\r\n"
@@ -57,43 +59,47 @@ def main():
                 "Allow: INVITE,BYE,CANCEL,ACK,REGISTER,SUBSCRIBE,NOTIFY,MESSAGE,INFO,REFER,OPTIONS,PUBLISH,PRACK\r\n"
                 "Content-Length: 0\r\n\r\n")
 
-    # SIP early offer string
-    earlyOffer = ("INVITE sip:" + destinationUserPart + "@" + destinationHostPart + ":5060;transport=tcp SIP/2.0\r\n"
-                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=1234\r\n"
-                "From: <sip:99999@" + sourceIp + ">;tag=456\r\n"
-                "To: <sip:" + destinationUserPart + "@" + destinationHostPart + ":5060>\r\n"
-                "Call-ID: " + callId + "@" + sourceIp + "\r\n"
-                "CSeq: " + cseq + " INVITE\r\n"
-                "Content-Type: application/sdp\r\n"
-                "Contact: <sip:99999@" + sourceIp + ":5060;transport=tcp>\r\n"
-                "User-Agent: SIP Probe\r\n"
-                "Max-Forwards: 10\r\n"
-                "Supported: replaces,timer\r\n"
-                "P-Asserted-Identity: <sip:99999@" + sourceIp + ">\r\n"
-                "Allow: INVITE,BYE,CANCEL,ACK,REGISTER,SUBSCRIBE,NOTIFY,MESSAGE,INFO,REFER,OPTIONS,PUBLISH,PRACK\r\n"
-                "Content-Length: 207\r\n\r\n"
-                "o=SP 12345 IN IP4 " + sourceIp + "\r\n"
+    
+    # Early offer SDP - seperated so content-length can be calculated.
+    earlyOffer_media = ("o=SP 12345 IN IP4 " + sourceIp + "\r\n"
                 "s=-\r\n"
                 "p=11111\r\n"
                 "t=0 0\r\n"
                 "m=audio " + randomPort + " RTP/AVP 8 101\r\n"
                 "c=IN IP4 " + sourceIp + "\r\n"
                 "a=rtpmap:8 PCMA/8000\r\n"
+                # "a=rtpmap:8 PCMU/8000\r\n"
                 "a=rtpmap:101 telephone-event/8000\r\n"
                 "a=fmtp:101 0-15\r\n"
                 "a=ptime:20\r\n"
-                "a=sendrecv\r\n\r\n") 
+                "a=sendrecv\r\n\r\n")
+
+    # SIP early offer string
+    earlyOffer = ("INVITE sip:" + destinationUserPart + "@" + destinationHostPart + ":5060;transport=tcp SIP/2.0\r\n"
+                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=" + branch + "\r\n"
+                "From: <sip:99999@" + sourceIp + ">;tag=" + tag + "\r\n"
+                "To: <sip:" + destinationUserPart + "@" + destinationHostPart + ":5060>\r\n"
+                "Call-ID: " + callId + "@" + sourceIp + "\r\n"
+                "CSeq: " + cseq + " INVITE\r\n"
+                "Content-Type: application/SDP\r\n"
+                "Contact: <sip:99999@" + sourceIp + ":5060;transport=tcp>\r\n"
+                "User-Agent: SIP Probe\r\n"
+                "Max-Forwards: 10\r\n"
+                "Supported: replaces,timer\r\n"
+                "P-Asserted-Identity: <sip:99999@" + sourceIp + ">\r\n"
+                "Allow: INVITE,BYE,CANCEL,ACK,REGISTER,SUBSCRIBE,NOTIFY,MESSAGE,INFO,REFER,OPTIONS,PUBLISH,PRACK\r\n"
+                "Content-Length: "+ str(len(earlyOffer_media)) + "\r\n\r\n" + earlyOffer_media) 
 
     # SIP OPTIONS string
     options = ("OPTIONS sip:" + destinationIp + ":5060;transport=tcp SIP/2.0\r\n"
-                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=1234\r\n"
-                "From: \"SIP Probe\"<sip:99999@" + sourceIp + ":5060>;tag=5678\r\n"
+                "Via: SIP/2.0/TCP " + sourceIp + ":5060;branch=" + branch + "\r\n"
+                "From: \"SIP Probe\"<sip:99999@" + sourceIp + ":5060>;tag=" + tag + "\r\n"
                 "To: <sip:" + destinationIp + ":5060>\r\n"
                 "Call-ID: " + callId + "\r\n"
                 "CSeq: 1 OPTIONS\r\n"
                 "Max-Forwards: 0\r\n"
                 "Content-Length: 0\r\n\r\n")
-                
+    
     # Initialise a new socket
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP) as s:
@@ -129,6 +135,8 @@ def main():
                     if "404 NOT FOUND" in lineUpper:
                         sentinal = False
                     if "480 TEMPORARILY NOT AVAILABLE" in lineUpper:
+                        sentinal = False
+                    if "488 NOT ACCEPTABLE MEDIA" in lineUpper:
                         sentinal = False
 
     except ConnectionRefusedError as e:
